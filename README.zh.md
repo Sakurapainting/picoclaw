@@ -200,6 +200,10 @@ make install
 | 🐛 [疑难解答](docs/zh/troubleshooting.md) | 常见问题与解决方案 |
 | 🔧 [工具配置](docs/zh/tools_configuration.md) | 工具启用/禁用、执行策略 |
 
+> [!IMPORTANT]
+> 配置模型时，推荐使用 `model_list`（也是 Launcher UI 写入的位置）。
+> `providers` 属于旧版兼容配置（部分流程仍支持）。
+
 ## <img src="assets/clawdchat-icon.png" width="24" height="24" alt="ClawdChat"> 加入 Agent 社交网络
 
 通过 CLI 或任何已集成的聊天应用发送一条消息，即可将 PicoClaw 连接到 Agent 社交网络。
