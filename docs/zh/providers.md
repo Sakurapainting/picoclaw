@@ -38,6 +38,19 @@
 - **负载均衡**：在多个 API 端点之间分配请求
 - **集中化配置**：在一个地方管理所有 provider
 
+#### 快速说明：`model_list` 和 `providers` 的区别
+
+如果你是第一次配置 PicoClaw，这一段最关键：
+
+- `model_list` 是当前**推荐**的主配置格式。
+- `providers` 是**旧版兼容**格式。
+- Launcher UI 会把模型配置写入 `model_list`。
+
+可按下面规则理解：
+
+- 使用 Launcher（`picoclaw-launcher` / `picoclaw-launcher-tui`）：在 UI 里设置，落盘到 `model_list`。
+- 手动编辑 JSON：优先使用 `model_list`；仅在兼容旧配置时使用 `providers`。
+
 #### 📋 所有支持的厂商
 
 | 厂商                | `model` 前缀      | 默认 API Base                                       | 协议      | 获取 API Key                                                      |
