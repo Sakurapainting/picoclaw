@@ -261,6 +261,10 @@ picoclaw onboard
 
 **2. Configure** (`~/.picoclaw/config.json`)
 
+> [!IMPORTANT]
+> `model_list` is the recommended and current config format. Launcher UI writes model settings into `model_list`.
+> `providers` is a legacy compatibility section (still supported in some flows).
+
 ```json
 {
   "agents": {
