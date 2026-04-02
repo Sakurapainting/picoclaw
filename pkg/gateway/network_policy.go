@@ -66,6 +66,24 @@ func resolveGatewayListenDecision(
 		return nil, fmt.Errorf("bind %s:%d failed: %w", host, port, bindErr)
 	}
 
+	// Before widening exposure via wildcard bind, try other common loopback hosts.
+	for _, altHost := range alternativeLoopbackHosts(host) {
+		if err := probeGatewayBind(altHost, port); err == nil {
+			return &gatewayListenDecision{
+				BindHost:     altHost,
+				AllowedCIDRs: normalizedCIDRs,
+				AutoFallback: true,
+				FallbackReason: fmt.Sprintf(
+					"loopback bind %s:%d failed, fallback to loopback host %s:%d",
+					host,
+					port,
+					altHost,
+					port,
+				),
+			}, nil
+		}
+	}
+
 	var discoveredCIDRs []string
 	if len(normalizedCIDRs) == 0 {
 		var discoverErr error
@@ -122,6 +140,27 @@ func resolveGatewayListenDecision(
 			port,
 		),
 	}, nil
+}
+
+func alternativeLoopbackHosts(configuredHost string) []string {
+	configured := strings.TrimSpace(strings.ToLower(configuredHost))
+	candidates := []string{"127.0.0.1", "::1", "localhost"}
+	out := make([]string, 0, len(candidates))
+	seen := make(map[string]struct{}, len(candidates))
+
+	for _, candidate := range candidates {
+		normalized := strings.TrimSpace(strings.ToLower(candidate))
+		if normalized == configured {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, candidate)
+	}
+
+	return out
 }
 
 func fallbackBindCandidates(configuredLoopbackHost string) []string {

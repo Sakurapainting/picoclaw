@@ -42,6 +42,8 @@ func TestResolveGatewayListenDecisionLoopbackFallbackUsesConfiguredCIDRs(t *test
 		switch host {
 		case "127.0.0.1":
 			return errors.New("loopback unavailable")
+		case "::1", "localhost":
+			return errors.New("alternative loopback unavailable")
 		case gatewayFallbackBindHostV4, gatewayFallbackBindHostV6:
 			return nil
 		default:
@@ -84,6 +86,8 @@ func TestResolveGatewayListenDecisionLoopbackFallbackUsesDiscoveredCIDRs(t *test
 		switch host {
 		case "localhost":
 			return errors.New("loopback unavailable")
+		case "127.0.0.1", "::1":
+			return errors.New("alternative loopback unavailable")
 		case gatewayFallbackBindHostV4, gatewayFallbackBindHostV6:
 			return nil
 		default:
@@ -146,6 +150,8 @@ func TestResolveGatewayListenDecisionLoopbackFailureNoDiscoveredCIDRs(t *testing
 		switch host {
 		case "127.0.0.1":
 			return errors.New("loopback unavailable")
+		case "::1", "localhost":
+			return errors.New("alternative loopback unavailable")
 		case gatewayFallbackBindHostV4, gatewayFallbackBindHostV6:
 			return nil
 		default:
@@ -177,6 +183,8 @@ func TestResolveGatewayListenDecisionLoopbackFallbackIPv6Preferred(t *testing.T)
 		switch host {
 		case "::1":
 			return errors.New("loopback unavailable")
+		case "127.0.0.1", "localhost":
+			return errors.New("alternative loopback unavailable")
 		case gatewayFallbackBindHostV6:
 			return nil
 		case gatewayFallbackBindHostV4:
@@ -210,6 +218,8 @@ func TestResolveGatewayListenDecisionLoopbackFallbackTriesSecondaryWildcard(t *t
 		switch host {
 		case "::1":
 			return errors.New("loopback unavailable")
+		case "127.0.0.1", "localhost":
+			return errors.New("alternative loopback unavailable")
 		case gatewayFallbackBindHostV6:
 			return errors.New("ipv6 wildcard unavailable")
 		case gatewayFallbackBindHostV4:
@@ -228,6 +238,47 @@ func TestResolveGatewayListenDecisionLoopbackFallbackTriesSecondaryWildcard(t *t
 	}
 	if decision.BindHost != gatewayFallbackBindHostV4 {
 		t.Fatalf("decision.BindHost = %q, want %q", decision.BindHost, gatewayFallbackBindHostV4)
+	}
+}
+
+func TestResolveGatewayListenDecisionLoopbackUsesAlternativeBeforeWildcard(t *testing.T) {
+	origProbe := probeGatewayBind
+	origDiscover := discoverGatewayCIDRs
+	t.Cleanup(func() {
+		probeGatewayBind = origProbe
+		discoverGatewayCIDRs = origDiscover
+	})
+
+	discoverCalled := false
+	probeGatewayBind = func(host string, _ int) error {
+		switch host {
+		case "127.0.0.1":
+			return errors.New("configured loopback unavailable")
+		case "::1":
+			return nil
+		case "localhost", gatewayFallbackBindHostV4, gatewayFallbackBindHostV6:
+			return errors.New("must not be probed after alternative loopback succeeds")
+		default:
+			return nil
+		}
+	}
+	discoverGatewayCIDRs = func() ([]string, error) {
+		discoverCalled = true
+		return nil, errors.New("must not be called when alternative loopback succeeds")
+	}
+
+	decision, err := resolveGatewayListenDecision("127.0.0.1", 18790, nil)
+	if err != nil {
+		t.Fatalf("resolveGatewayListenDecision() error = %v", err)
+	}
+	if decision.BindHost != "::1" {
+		t.Fatalf("decision.BindHost = %q, want %q", decision.BindHost, "::1")
+	}
+	if len(decision.AllowedCIDRs) != 0 {
+		t.Fatalf("decision.AllowedCIDRs = %v, want empty", decision.AllowedCIDRs)
+	}
+	if discoverCalled {
+		t.Fatal("discoverGatewayCIDRs() called unexpectedly")
 	}
 }
 
@@ -307,6 +358,27 @@ func TestFallbackBindCandidates(t *testing.T) {
 			got := fallbackBindCandidates(tt.host)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("fallbackBindCandidates() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAlternativeLoopbackHosts(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		want []string
+	}{
+		{name: "configured ipv4", host: "127.0.0.1", want: []string{"::1", "localhost"}},
+		{name: "configured ipv6", host: "::1", want: []string{"127.0.0.1", "localhost"}},
+		{name: "configured localhost", host: "localhost", want: []string{"127.0.0.1", "::1"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := alternativeLoopbackHosts(tt.host)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("alternativeLoopbackHosts() = %v, want %v", got, tt.want)
 			}
 		})
 	}
