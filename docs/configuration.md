@@ -55,7 +55,7 @@ You can also override this with the environment variable `PICOCLAW_LOG_LEVEL`.
 
 When `gateway.host` is a loopback address (`127.0.0.1`, `::1`, or `localhost`) and bind fails (for example, on boards where loopback is unavailable), PicoClaw automatically:
 
-1. Falls back to bind on `0.0.0.0`.
+1. Falls back to a wildcard bind on all interfaces, using either `0.0.0.0` (IPv4) or `::` (IPv6), depending on whether the configured loopback host is IPv4/IPv6/`localhost` and which wildcard bind succeeds.
 2. Enforces a CIDR allowlist for gateway HTTP endpoints.
 3. Discovers private local interface CIDRs only when `gateway.allowed_cidrs` is empty.
 
