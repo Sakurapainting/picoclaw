@@ -13,7 +13,7 @@ type IPAllowlist struct {
 }
 
 // NewIPAllowlist parses CIDR rules and constructs an allowlist checker.
-// Empty CIDRs means unrestricted policy.
+// Empty CIDR list means unrestricted policy.
 func NewIPAllowlist(allowedCIDRs []string) (*IPAllowlist, error) {
 	if len(allowedCIDRs) == 0 {
 		return &IPAllowlist{}, nil
